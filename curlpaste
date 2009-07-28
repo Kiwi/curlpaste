@@ -1,0 +1,477 @@
+#!/usr/bin/lua
+
+pcall(dofile,"luapaste.conf")
+os.remove("luapaste.tmp")
+function str__mod(lhs, rhs)
+    if type(rhs) == "table" then
+        return lhs:format(unpack(rhs))
+    else
+        return lhs:gsub('%%', '%%%%'):gsub('%%%%', '%%', 1):format(rhs)
+    end
+end
+
+getmetatable("").__mod = str__mod
+
+--local Text = io.open("curlpaste.lua", "rb")
+local LP =  {
+    default_matcher = "", --function to process response from server for url
+    service = DEFAULT_SERVICE or "", --service to use
+    language =  DEFAULT_LANGUAGE or "", --language to use
+    services = {}, --available services (addService)
+    options = {}, --available options (addOption)
+    files = {}, --files to create textdata (fileList)
+    description = "", --description of paste, filename or -d <param> or stdin
+    run = false,
+    private = false,
+    nick = DEFAULT_NICK or os.getenv("USER"),
+    concat = false,
+    file = "",
+    tmpfilename = "luapaste.tmp",
+    stdin = false,
+}
+
+
+local function fdata(tbl, file)
+    local fd = assert(io.open(file, "rb"))
+    local buf = fd:read("*a")
+    fd:close()
+    local tmpfile = io.open(tbl.tmpfilename, "w")
+    tmpfile:write(buf)
+    tmpfile:close()
+--    return buf
+--    LP.textdata = buf
+end
+
+local function fdataConcat(tbl)
+    local fd
+    local buf = ""
+    for k, file in ipairs(tbl.files) do
+        fd = assert(io.open(file, "rb"))
+        buf = buf..file.."\n"..fd:read("*a")
+        fd:close()
+    end
+--  LP.textdata = buf
+    local tmpfile = io.open(tbl.tmpfilename, "w")
+    tmpfile:write(buf)
+    tmpfile:close()
+--    return buf
+end
+
+local function addService(tbl, service_name, service_url, languages_tbl, body_func, url_match) --tbl = LP
+    tbl.services[service_name] = {
+    url = service_url, 
+    languages = languages_tbl, 
+    matcher = url_match or nil,
+    curl_args = body_func, --function to create curl args
+    file = ""
+  }
+end
+
+
+----LANGUAGES----
+
+local CODEPAD_LANGUAGES = {
+  "C", "C++", "D", "Haskell", "Lua", "OCaml", "PHP", "Perl", "Plain Text", 
+  "Python", "Ruby", "Scheme", "Tcl",
+}
+local CA_LANGUAGES = {
+    ["ASP"] = "22";
+    ["Action Script"] = "18";
+    ["Ada"] = "19";
+    ["Apache Configuration"] = "20";
+    ["Assembl (NASM)"] = "21";
+    ["Asterisk Configuration"] = "2";
+    ["BASH"] = "23";
+    ["C"] = "3";
+    ["C#"] = "9";
+    ["C++"] = "4";
+    ["CSS"] = "24";
+    ["Delphi"] = "25";
+    ["HTML 4.0 Strict"] = "26";
+    ["Java"] = "7";
+    ["JavaScript"] = "27";
+    ["LISP"] = "28";
+    ["Lua"] = "29";
+    ["Microprocessor ASM"] = "30";
+    ["Objective C"] = "31";
+    ["PHP"] = "5";
+    ["PL/I"] = "14";
+    ["Pascal"] = "12";
+    ["Perl"] = "6";
+    ["Python"] = "11";
+    ["Raw"] = "1";
+    ["Ruby"] = "10";
+    ["SQL Statement"] = "16";
+    ["Scheme"] = "17";
+    ["Visual Basic .NET"] = "32";
+    ["Visual Basic"] = "8";
+    ["XML Document"] = "15";
+    ["mIRC Script"] = "13";
+}
+
+local MYSTIC_LANGUAGES = {
+    "as3", "bash", "csharp", "cpp", "css", "delphi", "diff", "groovy", "java", 
+    "js", "javafx", "perl", "php", "text", "powershell", "python", "ruby", 
+    "scala", "sql", "vb", "xml",
+}
+
+local DPASTE_LANGUAGES = {
+    "Python", "PythonConsole", "Sql", "DjangoTemplate", "JScript", "Css", "XmL", 
+    "Diff", "Ruby", "Rhtml", "Haskell", "Apache", "Bash", ["Plain"] = "";
+}
+
+local FPASTE_LANGUAGES = {
+    "apacheconf", "bash", "bat", "bbcode", "befunge", "boo", "brainfuck", "c", 
+    "cpp", "csharp", "css", "css+django", "css+erb", "css+genshitext", "css+mako", 
+    "css+myghty", "css+php", "css+smarty", "d", "delphi", "diff", "django", "dylan", 
+    "erb", "genshi", "genshitext", "groff", "haskell", "html", "html+django", 
+    "html+genshi", "html+mako", "html+myghty", "html+php", "html+smarty", "ini", 
+    "irc", "java", "js", "js+django", "js+erb", "js+genshitext", "js+mako", 
+    "js+myghty", "js+php", "js+smarty", "jsp", "lua", "make", "mako", "minid", 
+    "mupad", "myghty", "objective-c", "ocaml", "perl", "php", "pycon", "pytb", 
+    "python", "raw", "rb", "rbcon", "redcode", "rhtml", "rst", "scheme", "smarty", 
+    "sourceslist", "sql", "tex", "text", "trac-wiki", "vb.net", "vim", "xml", 
+    "xml+django", "xml+erb", "xml+mako", "xml+myghty", "xml+php", "xml+smarty",
+}
+--[[
+local OMPLOAD_LANGUAGES = {
+    "raw", "c", "cobol", "cpp", "css", "diff", "fortran", "haskell", "html", "java", "javascript", "lisp", "lua", "mysql", "pascal", "perl", "php", "python", "ruby", "scheme", "sh", "vb", "xhtml", "xml",
+}
+--]]
+
+------ARGS-----
+local function CODEPAD_ARGS(tbl, file)
+    local lang = tbl.services[tbl.service].languages[tbl.language] or tbl.language
+    local run = tbl.run
+    local private = tbl.private
+    if run then run = "True" else run = "False" end
+    if private then private = "True" else private = "False" end
+    local args = {
+        "'client=luapaste.lua'",
+        "'run=%s'" % run,
+        "'lang=%s'" % lang,
+        "'private=%s'" % private,
+        "'code@%s'" % file,
+        "'submit=Submit'",
+    }
+    return args
+end
+
+local function CA_ARGS(tbl, file)
+    local lang = tbl.services[tbl.service].languages[tbl.language] or tbl.language
+    local args = {
+        "'client=luapaste.lua'",
+        "'s=Submit Post'",
+        "'name=%s'" % tbl.nick,
+        "'description=%s'" % tbl.description,
+        "'type=%s'" % lang,
+        "'expiry=%s'" % "15 minutes",
+        "'content@%s'" % file,
+    }
+    return args
+end
+
+local function MYSTIC_ARGS(tbl, file)
+    local lang = tbl.services[tbl.service].languages[tbl.language] or tbl.language
+    local private = tbl.private
+    if private then private = "true" else private = "false" end
+    local args = {
+        "'client=luapaste.lua'",
+        "'description=luapaste.lua'",
+        "'type=%s'" % lang,
+        "'name=%s'" % tbl.nick,
+        "'content@%s'" % file,
+    }
+    return args
+end
+
+local function DPASTE_ARGS(tbl, file)
+    local lang = tbl.services[tbl.service].languages[tbl.language] or tbl.language
+    local args = {
+        "'client=luapaste.lua'",
+        "'content@%s'" % file,
+        "'title=%s'" % tbl.description,
+        "'poster=%s'" % tbl.nick,
+        "'language=%s'" % lang,
+    }
+    return args
+end
+
+local function FPASTE_ARGS(tbl, file)
+    local lang = tbl.services[tbl.service].languages[tbl.language] or tbl.language
+    local args = {
+--        "'client=luapaste.lua'",
+        "'content@%s'" % file,
+        "'lang=%s'" % lang,
+        "'submit=Paste it!'",
+    }
+    return args
+end
+
+----URL MATCHERS----
+
+local function CODEPAD_MATCHER(response)
+--    print(response)
+    local url = response:match('The resource was found at <a href="(.*)">/')
+    if url then
+        return "\nhttp://codepad.org"..url
+    else
+        print("Error retrieving url.")
+--        return
+    end
+end
+
+local function CA_MATCHER(response)
+   local url = response:match('SUCCESS:(.*)')
+   if url then
+        return "\nhttp://pastebin.ca/"..url
+    else
+        print("Error retrieving url.")
+--        return
+    end
+    --return response
+end
+
+local function MYSTIC_MATCHER(response)
+    local url = response:match('X%-Paste%-Identifier: (.*)')
+
+    if url then
+        return "http://mysticpaste.com/view/"..url
+    else
+        print("Error retrieving url.")
+--        return
+    end
+end
+
+local function DPASTE_MATCHER(response)
+    local url = response:match('Location: (.*)')
+--    print(response)
+    if url then
+        return url:match("http://dpaste.com/%d*/")
+    else
+        print("Error retrieving url.")
+--        return
+    end
+end
+
+local function FPASTE_MATCHER(response)
+    local url = response:match('Location: (.*)')
+    if url then
+        return url:match("http://fpaste.org/paste/%d*")
+    else
+        print("Error retrieving url.")
+--        return
+    end
+end
+
+addService(LP, "codepad", "http://codepad.org/", CODEPAD_LANGUAGES, CODEPAD_ARGS, CODEPAD_MATCHER)
+addService(LP, "ca", "http://pastebin.ca/quiet-paste.php?api=moFXXusXQpQ3zlOyYgsXuG74HzYErXkx", CA_LANGUAGES, CA_ARGS, CA_MATCHER)
+addService(LP, "mystic", "http://www.mysticpaste.com/servlet/plugin", MYSTIC_LANGUAGES, MYSTIC_ARGS, MYSTIC_MATCHER)
+addService(LP, "dpaste", "http://dpaste.com", DPASTE_LANGUAGES, DPASTE_ARGS, DPASTE_MATCHER)
+addService(LP, "fpaste", "http://fpaste.org/paste/save", FPASTE_LANGUAGES, FPASTE_ARGS, FPASTE_MATCHER)
+
+
+local function addOption(tbl, option_name, func_name, secondary_name)
+  tbl.options[option_name] = {on = false, params = {}, func = func_name}
+  if secondary_name and secondary_name ~= option_name then
+    tbl.options[secondary_name] = {on = false, params = tbl.options[option_name].params, func = func_name}
+  end
+end
+
+local function getOptions(options)
+  local function resetFlags()
+    for k in pairs(options) do
+      options[k].on = false
+    end
+  end
+  local cur_opt
+  local args_left = #arg
+  for i = 1, #arg do
+    if string.match(arg[i], "^%-%-") then
+      s = string.gsub(arg[i], "^%-%-", "")
+      --if options[s] and string.len(s) > 1 then
+      if options[s] and #s > 1 then
+        options[s].on = true
+        cur_opt = s
+      else
+        print("--"..s.." is an invalid option")
+        resetFlags()
+      end
+    elseif string.match(arg[i], "^%-%a+") then
+      --for j = 1, arg[i]:len()-1 do
+      for j = 1, #arg[i]-1 do
+        s = string.sub(arg[i], j+1, j+1)
+        if options[s] then
+          options[s].on = true
+          cur_opt = s
+        else
+          print("-"..s.." is an invalid option")
+          resetFlags()
+        end
+      end
+    elseif cur_opt then 
+      table.insert(options[cur_opt].params, arg[i])
+    else
+--      table.insert(files, arg[i])
+    end
+  end
+end
+
+
+local function fileList(tbl, params)
+  for k, v in ipairs(params) do
+--      print(k, v)
+    table.insert(tbl.files, v)
+  end
+end
+
+addOption(LP, "f", fileList, "file")
+
+local function pickService(tbl, params)
+  tbl.service = params[1]
+end
+
+addOption(LP, "s", pickService, "service")
+
+local function pickLanguage(tbl, params)
+  tbl.language = params[1]
+end
+
+addOption(LP, "l", pickLanguage, "language")
+
+local function private(tbl, params)
+  tbl.private = true
+end
+
+addOption(LP, "p", private, "private")
+
+local function run(tbl, params)
+  tbl.run = true
+end
+
+addOption(LP, "r", run, "run")
+
+local function concat(tbl, params)
+  tbl.concat = true
+end
+
+addOption(LP, "c", concat, "concat")
+
+local function description(tbl, params)
+    tbl.description = params[1]
+end
+
+addOption(LP, "d", description, "description")
+
+local function nick(tbl, params)
+    tbl.nick = tbl[1]
+end
+
+addOption(LP, "n", nick, "nick")
+
+local function listServices(tbl, params)
+    for k in pairs(tbl.services) do
+        print(k)
+    end
+end
+
+addOption(LP, "S", listServices, "list-services")
+
+local function listLanguages(tbl, params)
+    for k, v in pairs(tbl.services[params[1]].languages) do
+        if type(k) == "number"  then print(v) else print(k) end
+    end
+end
+
+addOption(LP, "L", listLanguages, "list-languages")
+
+local function stdin(tbl, params)
+    tbl.stdin = true
+end
+
+addOption(LP, "stdin", stdin)
+
+local function post(tbl, filename)
+    tbl.services[tbl.service].file = filename
+    local s_url = tbl.services[tbl.service].url
+    local curl_args = tbl.services[tbl.service].curl_args(tbl, filename)
+    local matcher = tbl.services[tbl.service].matcher
+    curl_command = "curl -is -H 'Expect:'"
+    for k, v in ipairs(curl_args) do
+        curl_command = curl_command .. " --data-urlencode " .. v
+    end
+    curl_command = curl_command .. " " .. string.format("%q", s_url)
+    local response = io.popen(curl_command)
+    response = response:read("*a")
+    print(matcher(response))
+    print(curl_command)
+end
+getOptions(LP.options)
+
+local function setOptions(tbl)
+    for k in pairs(tbl.options) do
+        if tbl.options[k].on == true then
+            tbl.options[k].func(tbl, tbl.options[k].params)
+        end
+    end
+end
+
+setOptions(LP)
+  
+--sanity checks to decide if the program should continue to upload
+
+--service
+if not LP.services[LP.service] then
+  print("Invalid service") 
+ return
+end
+
+--language
+if not (function()
+  ---[[
+    for k, v in ipairs(LP.services[LP.service].languages) do 
+        if v == LP.language then 
+            return true
+        end
+   end
+  --]]
+   if LP.services[LP.service].languages[LP.language] then 
+      return true 
+  end
+  end)()
+then 
+  print("Invalid language")
+  return
+end
+
+
+
+local function post1(tbl)        
+    
+    if tbl.concat then
+        fdataConcat(tbl)
+        post(tbl, tbl.tmpfilename)
+    elseif #tbl.files > 0 then
+--    else
+        for k, v in ipairs(tbl.files) do
+--            print(k, v)
+            fdata(tbl, v)
+            post(tbl, tbl.tmpfilename)
+        end
+    elseif #tbl.files == 0 and tbl.stdin == true  then
+        local buf = io.stdin:read("*a")
+        local tmpfile = io.open(tbl.tmpfilename, "w")
+        tmpfile:write(buf)
+        tmpfile:close()
+        post(tbl, tbl.tmpfilename)
+    end
+end
+
+post1(LP)
+
+local function cleanup(tbl)
+    os.remove(tbl.tmpfilename)
+end
+
+cleanup(LP)
+--    post(LP, "luapaste.lua")
