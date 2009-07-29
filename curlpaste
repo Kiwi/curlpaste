@@ -1,8 +1,16 @@
 #!/usr/bin/lua
 
-pcall(dofile,"luapaste.conf")
-os.remove("luapaste.tmp")
-function str__mod(lhs, rhs)
+--pcall(dofile, "/etc/curlpaste.conf")
+--pcall(dofile, os.getenv("HOME").."/.curlpaste.conf")
+local function loadconf(x) local ok,e = pcall(dofile,x) if not ok and not string.match(e,"^cannot open ") then error(e) end end 
+loadconf("/etc/curlpaste.conf")
+loadconf(os.getenv("HOME").."/.curlpaste.conf")
+
+local function cleanup(tbl)
+    os.remove(tbl.tmpfilename)
+end
+
+local function str__mod(lhs, rhs)
     if type(rhs) == "table" then
         return lhs:format(unpack(rhs))
     else
@@ -12,7 +20,6 @@ end
 
 getmetatable("").__mod = str__mod
 
---local Text = io.open("curlpaste.lua", "rb")
 local LP =  {
     default_matcher = "", --function to process response from server for url
     service = DEFAULT_SERVICE or "", --service to use
@@ -28,8 +35,9 @@ local LP =  {
     file = "",
     tmpfilename = "luapaste.tmp",
     stdin = false,
+    cont = true,
 }
-
+cleanup(LP)
 
 local function fdata(tbl, file)
     local fd = assert(io.open(file, "rb"))
@@ -381,6 +389,7 @@ local function listLanguages(tbl, params)
     for k, v in pairs(tbl.services[params[1]].languages) do
         if type(k) == "number"  then print(v) else print(k) end
     end
+    tbl.cont = false
 end
 
 addOption(LP, "L", listLanguages, "list-languages")
@@ -404,7 +413,7 @@ local function post(tbl, filename)
     local response = io.popen(curl_command)
     response = response:read("*a")
     print(matcher(response))
-    print(curl_command)
+--    print(curl_command)
 end
 getOptions(LP.options)
 
@@ -417,24 +426,72 @@ local function setOptions(tbl)
 end
 
 setOptions(LP)
-  
+
+
+
+
+
+
+
+
+
 --sanity checks to decide if the program should continue to upload
 
+
+local function checkService(tbl)
+    if not LP.services[LP.service] then
+        print("Invalid service.")
+        LP.cont = false
+        return
+    end
+end
+
+checkService(LP)
+
+if not LP.cont then return end
+
+local function checkLanguage(tbl)
+    if not (function()
+        for k, v in pairs(tbl.services[tbl.service].languages) do
+            if type(k) == "number" then
+                if v:lower() == tbl.language:lower() then
+                    tbl.language = v
+                    return true
+                end
+            elseif k:lower() == tbl.language:lower() then
+                tbl.language = k
+                return true
+            end
+        end
+    end)()
+    then
+        tbl.cont = false
+        print("Invalid language.")
+    end
+end
+
+checkLanguage(LP)
+--non-post option specified
+if not LP.cont then return end
+
 --service
+--[[
 if not LP.services[LP.service] then
   print("Invalid service") 
  return
 end
+--]]
 
 --language
-if not (function()
-  ---[[
+--if not (function()
+  --[[
     for k, v in ipairs(LP.services[LP.service].languages) do 
         if v == LP.language then 
             return true
         end
    end
   --]]
+  --[[
    if LP.services[LP.service].languages[LP.language] then 
       return true 
   end
@@ -443,7 +500,7 @@ then
   print("Invalid language")
   return
 end
-
+--]]
 
 
 local function post1(tbl)        
@@ -469,9 +526,7 @@ end
 
 post1(LP)
 
-local function cleanup(tbl)
-    os.remove(tbl.tmpfilename)
-end
+
 
 cleanup(LP)
 --    post(LP, "luapaste.lua")
