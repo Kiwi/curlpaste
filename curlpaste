@@ -27,7 +27,7 @@ local LP =  {
     services = {}, --available services (addService)
     options = {}, --available options (addOption)
     files = {}, --files to create textdata (fileList)
-    description = "", --description of paste, filename or -d <param> or stdin
+    description = DEFAULT_DESCRIPTION or "", --description of paste, filename or -d <param> or stdin
     run = false,
     private = false,
     nick = DEFAULT_NICK or os.getenv("USER"),
@@ -71,7 +71,7 @@ local function addService(tbl, service_name, service_url, languages_tbl, body_fu
     languages = languages_tbl, 
     matcher = url_match or nil,
     curl_args = body_func, --function to create curl args
-    file = ""
+--    file = ""
   }
 end
 
@@ -439,16 +439,18 @@ setOptions(LP)
 
 
 local function checkService(tbl)
-    if not LP.services[LP.service] then
+    if not tbl.services[tbl.service] then
         print("Invalid service.")
-        LP.cont = false
-        return
+        tbl.cont = false
     end
 end
 
 checkService(LP)
 
-if not LP.cont then return end
+if not LP.cont then 
+    cleanup(LP)
+    return
+end
 
 local function checkLanguage(tbl)
     if not (function()
@@ -472,7 +474,10 @@ end
 
 checkLanguage(LP)
 --non-post option specified
-if not LP.cont then return end
+if not LP.cont then 
+    cleanup(LP)
+    return 
+end
 
 --service
 --[[
