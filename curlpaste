@@ -1,10 +1,21 @@
 #!/usr/bin/lua
 
---pcall(dofile, "/etc/curlpaste.conf")
---pcall(dofile, os.getenv("HOME").."/.curlpaste.conf")
-local function loadconf(x) local ok,e = pcall(dofile,x) if not ok and not string.match(e,"^cannot open ") then error(e) end end 
+local function loadconf(x) 
+    local ok,e = pcall(dofile,x) 
+    if not ok and not string.match(e,"^cannot open ") then 
+        error(e) 
+    end 
+end 
+
 loadconf("/etc/curlpaste.conf")
 loadconf(os.getenv("HOME").."/.curlpaste.conf")
+
+--some people don't have a config file...
+DEFAULT_DESCRIPTION = DEFAULT_DESCRIPTION or ""
+DEFAULT_NICK = DEFAULT_NICK or os.getenv("USER")
+DEFAULT_LANGUAGE = DEFAULT_LANGUAGE or "Plain Text"
+DEFAULT_SERVICE = DEFAULT_SERVICE or "codepad"
+
 
 local function cleanup(tbl)
     os.remove(tbl.tmpfilename)
@@ -142,7 +153,9 @@ local FPASTE_LANGUAGES = {
 }
 --[[
 local OMPLOAD_LANGUAGES = {
-    "raw", "c", "cobol", "cpp", "css", "diff", "fortran", "haskell", "html", "java", "javascript", "lisp", "lua", "mysql", "pascal", "perl", "php", "python", "ruby", "scheme", "sh", "vb", "xhtml", "xml",
+    "raw", "c", "cobol", "cpp", "css", "diff", "fortran", "haskell", "html", "java", 
+    "javascript", "lisp", "lua", "mysql", "pascal", "perl", "php", "python", "ruby", 
+    "scheme", "sh", "vb", "xhtml", "xml",
 }
 --]]
 
@@ -406,7 +419,7 @@ end
 addOption(LP, "S", listServices, "list-services")
 
 local function listLanguages(tbl, params)
-    if params[1] then
+    if tbl.services[params[1]] then
         for k, v in pairs(tbl.services[params[1]].languages) do
             if type(k) == "number"  then print(v) else print(k) end
         end
