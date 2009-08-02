@@ -36,6 +36,7 @@ local LP =  {
     tmpfilename = "luapaste.tmp",
     stdin = false,
     cont = true,
+    command = false,
 }
 cleanup(LP)
 
@@ -319,54 +320,78 @@ local function getOptions(options)
   end
 end
 
-
 local function fileList(tbl, params)
-  for k, v in ipairs(params) do
-    table.insert(tbl.files, v)
-  end
+    if #params > 0 then
+        for k, v in ipairs(params) do
+            table.insert(tbl.files, v)
+        end
+    else
+        print("Usage: curlpaste -f file1 file2 file3 ...")
+        tbl.cont = false
+    end
 end
 
 addOption(LP, "f", fileList, "file")
 
 local function pickService(tbl, params)
-  tbl.service = params[1]
+    if params[1] then
+        tbl.service = params[1]
+    else
+        print("Usage: curlpaste -s SERVICE")
+        tbl.cont = false
+    end
 end
 
 addOption(LP, "s", pickService, "service")
 
 local function pickLanguage(tbl, params)
-  tbl.language = params[1]
+    if params[1] then
+        tbl.language = params[1]
+    else
+        print("Usage: curlpaste -l LANGUAGE")
+        tbl.cont = false
+    end
 end
 
 addOption(LP, "l", pickLanguage, "language")
 
 local function private(tbl, params)
-  tbl.private = true
+    tbl.private = true
 end
 
 addOption(LP, "p", private, "private")
 
 local function run(tbl, params)
-  tbl.run = true
+    tbl.run = true
 end
 
 addOption(LP, "r", run, "run")
 
 local function concat(tbl, params)
-  tbl.concat = true
+    tbl.concat = true
 end
 
 addOption(LP, "c", concat, "concat")
 
 local function description(tbl, params)
-    tbl.description = params[1]
-    DEFAULT_DESCRIPTION = params[1]
+    if params[1] then
+        tbl.description = params[1]
+        DEFAULT_DESCRIPTION = params[1]
+    else 
+        print("Usage: curlpaste -d DESCRIPTION")
+        tbl.cont = false
+    end
 end
 
 addOption(LP, "d", description, "description")
 
 local function nick(tbl, params)
-    tbl.nick = tbl[1]
+    if params[1] then
+        tbl.nick = params[1]
+    else
+        print("Usage: curlpaste -n NICK")
+        tbl.cont = false
+    end
 end
 
 addOption(LP, "n", nick, "nick")
@@ -375,13 +400,18 @@ local function listServices(tbl, params)
     for k in pairs(tbl.services) do
         print(k)
     end
+    tbl.cont = false
 end
 
 addOption(LP, "S", listServices, "list-services")
 
 local function listLanguages(tbl, params)
-    for k, v in pairs(tbl.services[params[1]].languages) do
-        if type(k) == "number"  then print(v) else print(k) end
+    if params[1] then
+        for k, v in pairs(tbl.services[params[1]].languages) do
+            if type(k) == "number"  then print(v) else print(k) end
+        end
+    else
+        print("Usage: curlpaste -L SERVICE")
     end
     tbl.cont = false
 end
@@ -402,6 +432,7 @@ Options:
     -f, --file FILE(s)              list of files to upload
     -s, --service SERVICE           set service to use
     -l, --language LANG             set what language to use
+    -C, --command COMMAND           run COMMAND and paste the output
     -p, --private                   set private flag if available
     -r, --run                       set run flag (codepad)
     -c, --concat                    concat multiple files into a single upload
@@ -414,9 +445,26 @@ Options:
     -L, --list-languages SERVICE    list supported languages for a service
         --stdin                     pipe data into the program
 ]=])
+tbl.cont = false
 end
 
 addOption(LP, "h", help, "help")
+
+local function runCommand(tbl, params)
+    if params[1] then
+        local fd = assert(io.popen(params[1]))
+        local buf = fd:read("*a")
+        local tmpfile = io.open(tbl.tmpfilename, "w")
+        tmpfile:write(buf)
+        tmpfile:close()
+        tbl.services[tbl.service].file = params[1]
+        tbl.command = true
+    else
+        print("Usage: -C COMMAND")
+    end
+end
+
+addOption(LP, "C", runCommand, "command")
 
 local function post(tbl, filename)
     local file = tbl.services[tbl.service].file
@@ -511,6 +559,8 @@ local function post1(tbl)
         local tmpfile = io.open(tbl.tmpfilename, "w")
         tmpfile:write(buf)
         tmpfile:close()
+        post(tbl, tbl.tmpfilename)
+    elseif tbl.command == true and #tbl.files == 0 and tbl.stdin ~= true then
         post(tbl, tbl.tmpfilename)
     end
 end
