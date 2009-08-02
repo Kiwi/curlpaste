@@ -46,6 +46,7 @@ local function fdata(tbl, file)
     local tmpfile = io.open(tbl.tmpfilename, "w")
     tmpfile:write(buf)
     tmpfile:close()
+    tbl.services[tbl.service].file = file
 end
 
 local function fdataConcat(tbl)
@@ -59,6 +60,7 @@ local function fdataConcat(tbl)
     local tmpfile = io.open(tbl.tmpfilename, "w")
     tmpfile:write(buf)
     tmpfile:close()
+    tbl.services[tbl.service].file = "Multiple files"
 end
 
 local function addService(tbl, service_name, service_url, languages_tbl, body_func, url_match) --tbl = LP
@@ -67,7 +69,7 @@ local function addService(tbl, service_name, service_url, languages_tbl, body_fu
     languages = languages_tbl, 
     matcher = url_match or nil,
     curl_args = body_func, --function to create curl args
---    file = ""
+    file = ""
   }
 end
 
@@ -358,6 +360,7 @@ addOption(LP, "c", concat, "concat")
 
 local function description(tbl, params)
     tbl.description = params[1]
+    DEFAULT_DESCRIPTION = params[1]
 end
 
 addOption(LP, "d", description, "description")
@@ -391,11 +394,38 @@ end
 
 addOption(LP, "stdin", stdin)
 
+local function help(tbl, params)
+print([=[
+Usage: curlpaste [options] -f [file[s]]
+
+Options:
+    -f, --file FILE(s)              list of files to upload
+    -s, --service SERVICE           set service to use
+    -l, --language LANG             set what language to use
+    -p, --private                   set private flag if available
+    -r, --run                       set run flag (codepad)
+    -c, --concat                    concat multiple files into a single upload
+                                    default is a separate paste for each file
+    -d, --description DESC          set description of paste
+    -n, --nick NICK                 set the name to use for a paste
+    -h, --help                      show this help info
+
+    -S, --list-services             list supported services
+    -L, --list-languages SERVICE    list supported languages for a service
+        --stdin                     pipe data into the program
+]=])
+end
+
+addOption(LP, "h", help, "help")
+
 local function post(tbl, filename)
-    if tbl.description == "" then 
-        tbl.description = filename
-    elseif tbl.description == DEFAULT_DESCRIPTION then
-        tbl.description = tbl.description.." ("..filename..")"
+    local file = tbl.services[tbl.service].file
+    if DEFAULT_DESCRIPTION  == "" then 
+        tbl.description = file
+    elseif DEFAULT_DESCRIPTION == tbl.description then
+        --do nothing because --description flag was used
+    else
+        tbl.description = DEFAULT_DESCRIPTION .." ("..file..")"
     end
     local s_url = tbl.services[tbl.service].url
     local curl_args = tbl.services[tbl.service].curl_args(tbl, filename)
@@ -467,17 +497,17 @@ if not LP.cont then
     return 
 end
 
-
-local function post1(tbl)        
-    
-    if tbl.concat then
+local function post1(tbl)
+    if tbl.concat and #tbl.files > 0 and tbl.stdin ~= true then
         fdataConcat(tbl)
         post(tbl, tbl.tmpfilename)
-    elseif #tbl.files > 0 then
+    elseif #tbl.files > 0 and tbl.stdin ~= true then
         for k, v in ipairs(tbl.files) do
             fdata(tbl, v)
             post(tbl, tbl.tmpfilename)
         end
+    elseif #arg == 0 or #tbl.files == 0 and tbl.stdin == true then
+        local buf = io.stdin:read("*a")
         local tmpfile = io.open(tbl.tmpfilename, "w")
         tmpfile:write(buf)
         tmpfile:close()
