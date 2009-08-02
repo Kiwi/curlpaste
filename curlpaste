@@ -46,8 +46,6 @@ local function fdata(tbl, file)
     local tmpfile = io.open(tbl.tmpfilename, "w")
     tmpfile:write(buf)
     tmpfile:close()
---    return buf
---    LP.textdata = buf
 end
 
 local function fdataConcat(tbl)
@@ -58,11 +56,9 @@ local function fdataConcat(tbl)
         buf = buf..file.."\n"..fd:read("*a")
         fd:close()
     end
---  LP.textdata = buf
     local tmpfile = io.open(tbl.tmpfilename, "w")
     tmpfile:write(buf)
     tmpfile:close()
---    return buf
 end
 
 local function addService(tbl, service_name, service_url, languages_tbl, body_func, url_match) --tbl = LP
@@ -219,7 +215,6 @@ end
 ----URL MATCHERS----
 
 local function CODEPAD_MATCHER(response)
---    print(response)
     local url = response:match('The resource was found at <a href="(.*)">/')
     if url then
         return "\nhttp://codepad.org"..url
@@ -253,7 +248,6 @@ end
 
 local function DPASTE_MATCHER(response)
     local url = response:match('Location: (.*)')
---    print(response)
     if url then
         return url:match("http://dpaste.com/%d*/")
     else
@@ -297,7 +291,6 @@ local function getOptions(options)
   for i = 1, #arg do
     if string.match(arg[i], "^%-%-") then
       s = string.gsub(arg[i], "^%-%-", "")
-      --if options[s] and string.len(s) > 1 then
       if options[s] and #s > 1 then
         options[s].on = true
         cur_opt = s
@@ -306,7 +299,6 @@ local function getOptions(options)
         resetFlags()
       end
     elseif string.match(arg[i], "^%-%a+") then
-      --for j = 1, arg[i]:len()-1 do
       for j = 1, #arg[i]-1 do
         s = string.sub(arg[i], j+1, j+1)
         if options[s] then
@@ -328,7 +320,6 @@ end
 
 local function fileList(tbl, params)
   for k, v in ipairs(params) do
---      print(k, v)
     table.insert(tbl.files, v)
   end
 end
@@ -401,7 +392,11 @@ end
 addOption(LP, "stdin", stdin)
 
 local function post(tbl, filename)
-    tbl.services[tbl.service].file = filename
+    if tbl.description == "" then 
+        tbl.description = filename
+    elseif tbl.description == DEFAULT_DESCRIPTION then
+        tbl.description = tbl.description.." ("..filename..")"
+    end
     local s_url = tbl.services[tbl.service].url
     local curl_args = tbl.services[tbl.service].curl_args(tbl, filename)
     local matcher = tbl.services[tbl.service].matcher
@@ -429,14 +424,7 @@ setOptions(LP)
 
 
 
-
-
-
-
-
-
 --sanity checks to decide if the program should continue to upload
-
 
 local function checkService(tbl)
     if not tbl.services[tbl.service] then
@@ -473,39 +461,11 @@ local function checkLanguage(tbl)
 end
 
 checkLanguage(LP)
---non-post option specified
-if not LP.cont then 
+
+if not LP.cont then
     cleanup(LP)
     return 
 end
-
---service
---[[
-if not LP.services[LP.service] then
-  print("Invalid service") 
- return
-end
---]]
-
---language
---if not (function()
-  --[[
-    for k, v in ipairs(LP.services[LP.service].languages) do 
-        if v == LP.language then 
-            return true
-        end
-   end
-  --]]
-  --[[
-   if LP.services[LP.service].languages[LP.language] then 
-      return true 
-  end
-  end)()
-then 
-  print("Invalid language")
-  return
-end
---]]
 
 
 local function post1(tbl)        
@@ -514,14 +474,10 @@ local function post1(tbl)
         fdataConcat(tbl)
         post(tbl, tbl.tmpfilename)
     elseif #tbl.files > 0 then
---    else
         for k, v in ipairs(tbl.files) do
---            print(k, v)
             fdata(tbl, v)
             post(tbl, tbl.tmpfilename)
         end
-    elseif #tbl.files == 0 and tbl.stdin == true  then
-        local buf = io.stdin:read("*a")
         local tmpfile = io.open(tbl.tmpfilename, "w")
         tmpfile:write(buf)
         tmpfile:close()
@@ -531,7 +487,4 @@ end
 
 post1(LP)
 
-
-
 cleanup(LP)
---    post(LP, "luapaste.lua")
