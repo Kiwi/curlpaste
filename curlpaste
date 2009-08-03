@@ -15,6 +15,7 @@ DEFAULT_DESCRIPTION = DEFAULT_DESCRIPTION or ""
 DEFAULT_NICK = DEFAULT_NICK or os.getenv("USER")
 DEFAULT_LANGUAGE = DEFAULT_LANGUAGE or "Plain Text"
 DEFAULT_SERVICE = DEFAULT_SERVICE or "codepad"
+DEFAULT_EXPIRY = DEFAULT_EXPIRY or "1 day"
 
 
 local function cleanup(tbl)
@@ -33,21 +34,22 @@ getmetatable("").__mod = str__mod
 
 local LP =  {
     default_matcher = "", --function to process response from server for url
-    service = DEFAULT_SERVICE or "", --service to use
-    language =  DEFAULT_LANGUAGE or "", --language to use
+    service = DEFAULT_SERVICE, --service to use
+    language =  DEFAULT_LANGUAGE, --language to use
     services = {}, --available services (addService)
     options = {}, --available options (addOption)
     files = {}, --files to create textdata (fileList)
-    description = DEFAULT_DESCRIPTION or "", --description of paste, filename or -d <param> or stdin
+    description = DEFAULT_DESCRIPTION, --description of paste, filename or -d <param> or stdin
     run = false,
     private = false,
-    nick = DEFAULT_NICK or os.getenv("USER"),
+    nick = DEFAULT_NICK,
     concat = false,
     file = "",
     tmpfilename = "luapaste.tmp",
     stdin = false,
     cont = true,
     command = false,
+    expires = DEFAULT_EXPIRY,
 }
 cleanup(LP)
 
@@ -75,11 +77,12 @@ local function fdataConcat(tbl)
     tbl.services[tbl.service].file = "Multiple files"
 end
 
-local function addService(tbl, service_name, service_url, languages_tbl, body_func, url_match) --tbl = LP
+local function addService(tbl, service_name, service_url, languages_tbl, body_func, url_match, expires_tbl) --tbl = LP
     tbl.services[service_name] = {
     url = service_url, 
-    languages = languages_tbl, 
-    matcher = url_match or nil,
+    languages = languages_tbl,
+    expires = expires_tbl or {},
+    matcher = url_match,
     curl_args = body_func, --function to create curl args
     file = ""
   }
@@ -159,6 +162,13 @@ local OMPLOAD_LANGUAGES = {
 }
 --]]
 
+-----EXPIRES----
+local CA_EXPIRES = { ["Never"] = "", "5 minutes", "10 minutes", "15 minutes", "30 minutes", "45 minutes",
+    "1 hour", "2 hours", "4 hours", "8 hours", "12 hours", "1 day", "2 days", "3 days", 
+    "1 week", "2 weeks", "3 weeks", "1 month", "2 months", "3 months", "4 months", 
+    "5 months", "6 months", "1 year",
+}
+
 ------ARGS-----
 local function CODEPAD_ARGS(tbl, file)
     local lang = tbl.services[tbl.service].languages[tbl.language] or tbl.language
@@ -185,7 +195,7 @@ local function CA_ARGS(tbl, file)
         "'name=%s'" % tbl.nick,
         "'description=%s'" % tbl.description,
         "'type=%s'" % lang,
-        "'expiry=%s'" % "15 minutes",
+        "'expiry=%s'" % tbl.expires,
         "'content@%s'" % file,
     }
     return args
@@ -283,7 +293,7 @@ local function FPASTE_MATCHER(response)
 end
 
 addService(LP, "codepad", "http://codepad.org/", CODEPAD_LANGUAGES, CODEPAD_ARGS, CODEPAD_MATCHER)
-addService(LP, "ca", "http://pastebin.ca/quiet-paste.php?api=moFXXusXQpQ3zlOyYgsXuG74HzYErXkx", CA_LANGUAGES, CA_ARGS, CA_MATCHER)
+addService(LP, "ca", "http://pastebin.ca/quiet-paste.php?api=moFXXusXQpQ3zlOyYgsXuG74HzYErXkx", CA_LANGUAGES, CA_ARGS, CA_MATCHER, CA_EXPIRES)
 addService(LP, "mystic", "http://www.mysticpaste.com/servlet/plugin", MYSTIC_LANGUAGES, MYSTIC_ARGS, MYSTIC_MATCHER)
 addService(LP, "dpaste", "http://dpaste.com", DPASTE_LANGUAGES, DPASTE_ARGS, DPASTE_MATCHER)
 addService(LP, "fpaste", "http://fpaste.org/paste/save", FPASTE_LANGUAGES, FPASTE_ARGS, FPASTE_MATCHER)
@@ -437,6 +447,29 @@ end
 
 addOption(LP, "stdin", stdin)
 
+local function setExpiry(tbl, params)
+    if params[1] then
+        tbl.expires = params[1]
+    else
+        print("Usage: curlpaste -e EXPIRATION")
+    end
+end
+
+addOption(LP, "e", setExpiry, "expiration")
+
+local function listExpiry(tbl, params)
+    if tbl.services[params[1]] then
+        for k, v in pairs(tbl.services[params[1]].expires) do
+            if type(k) == "number" then print(v) else print(k) end
+        end
+    else
+        print("Usage: curlpaste -E SERVICE")
+    end
+    tbl.cont = false
+end
+
+addOption(LP, "E", listExpiry, "list-expiration")
+
 local function help(tbl, params)
 print([=[
 Usage: curlpaste [options] -f [file[s]]
@@ -445,6 +478,7 @@ Options:
     -f, --file FILE(s)              list of files to upload
     -s, --service SERVICE           set service to use
     -l, --language LANG             set what language to use
+    -e, --expiration EXPIRATION     set when to expire (defaults to 1 day)
     -C, --command COMMAND           run COMMAND and paste the output
     -p, --private                   set private flag if available
     -r, --run                       set run flag (codepad)
@@ -453,7 +487,8 @@ Options:
     -d, --description DESC          set description of paste
     -n, --nick NICK                 set the name to use for a paste
     -h, --help                      show this help info
-
+    
+    -E, --list-expiration SERVICE   list supported expiration times for a service
     -S, --list-services             list supported services
     -L, --list-languages SERVICE    list supported languages for a service
         --stdin                     pipe data into the program
@@ -498,9 +533,37 @@ local function post(tbl, filename)
     curl_command = curl_command .. " " .. string.format("%q", s_url)
     local response = io.popen(curl_command)
     response = response:read("*a")
-    print(matcher(response))
+    return matcher(response)
 --    print(curl_command)
 end
+
+
+local function post1(tbl)
+    if tbl.concat and #tbl.files > 0 and tbl.stdin ~= true then
+        fdataConcat(tbl)
+        print(post(tbl, tbl.tmpfilename))
+    elseif #tbl.files > 0 and tbl.stdin ~= true then
+        for k, v in ipairs(tbl.files) do
+            fdata(tbl, v)
+            print(post(tbl, tbl.tmpfilename))
+        end
+    elseif #arg == 0 or #tbl.files == 0 and tbl.stdin == true then
+        local buf = io.stdin:read("*a")
+        local tmpfile = io.open(tbl.tmpfilename, "w")
+        tmpfile:write(buf)
+        tmpfile:close()
+        print(post(tbl, tbl.tmpfilename))
+    elseif tbl.command == true and #tbl.files == 0 and tbl.stdin ~= true then
+        print(post(tbl, tbl.tmpfilename))
+    end
+end
+
+
+
+
+
+
+
 getOptions(LP.options)
 
 local function setOptions(tbl)
@@ -558,25 +621,33 @@ if not LP.cont then
     return 
 end
 
-local function post1(tbl)
-    if tbl.concat and #tbl.files > 0 and tbl.stdin ~= true then
-        fdataConcat(tbl)
-        post(tbl, tbl.tmpfilename)
-    elseif #tbl.files > 0 and tbl.stdin ~= true then
-        for k, v in ipairs(tbl.files) do
-            fdata(tbl, v)
-            post(tbl, tbl.tmpfilename)
+local function checkExpiry(tbl)
+    if not (function()
+        for k, v in pairs(tbl.services[tbl.service].expires) do
+            if type(k) == "number" then
+                if v:lower() == tbl.expires:lower() then
+                    tbl.expires = v
+                    return true
+                end
+            elseif k:lower() == tbl.expires:lower() then
+                tbl.expires = k
+                return true
+            end
         end
-    elseif #arg == 0 or #tbl.files == 0 and tbl.stdin == true then
-        local buf = io.stdin:read("*a")
-        local tmpfile = io.open(tbl.tmpfilename, "w")
-        tmpfile:write(buf)
-        tmpfile:close()
-        post(tbl, tbl.tmpfilename)
-    elseif tbl.command == true and #tbl.files == 0 and tbl.stdin ~= true then
-        post(tbl, tbl.tmpfilename)
+    end)()
+    then
+        tbl.cont = false
+        print("Invalid expiration.")
     end
 end
+
+checkExpiry(LP)
+
+if not LP.cont then
+    cleanup(LP)
+    return
+end
+
 
 post1(LP)
 
