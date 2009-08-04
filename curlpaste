@@ -622,22 +622,24 @@ if not LP.cont then
 end
 
 local function checkExpiry(tbl)
-    if not (function()
-        for k, v in pairs(tbl.services[tbl.service].expires) do
-            if type(k) == "number" then
-                if v:lower() == tbl.expires:lower() then
-                    tbl.expires = v
+    if next(tbl.services[tbl.service].expires) then
+        if not (function()
+            for k, v in pairs(tbl.services[tbl.service].expires) do
+                if type(k) == "number" then
+                    if v:lower() == tbl.expires:lower() then
+                        tbl.expires = v
+                        return true
+                    end
+                elseif k:lower() == tbl.expires:lower() then
+                    tbl.expires = k
                     return true
                 end
-            elseif k:lower() == tbl.expires:lower() then
-                tbl.expires = k
-                return true
             end
+        end)()
+        then
+            tbl.cont = false
+            print("Invalid expiration.")
         end
-    end)()
-    then
-        tbl.cont = false
-        print("Invalid expiration.")
     end
 end
 
