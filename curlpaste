@@ -22,6 +22,15 @@ local function cleanup(tbl)
     os.remove(tbl.tmpfilename)
 end
 
+local function checkXclip()
+    local x = os.execute("which xclip >&/dev/null")
+    if x == 0 then 
+        return true
+    else 
+        return false
+    end
+end
+
 local function str__mod(lhs, rhs)
     if type(rhs) == "table" then
         return lhs:format(unpack(rhs))
@@ -45,11 +54,14 @@ local LP =  {
     nick = DEFAULT_NICK,
     concat = false,
     file = "",
-    tmpfilename = "luapaste.tmp",
+    tmpfilename = "curlpaste.tmp",
     stdin = false,
     cont = true,
     command = false,
     expires = DEFAULT_EXPIRY,
+    returnurl = "",
+    xpaste = false,
+    xcut = false, 
 }
 cleanup(LP)
 
@@ -60,7 +72,7 @@ local function fdata(tbl, file)
     local tmpfile = io.open(tbl.tmpfilename, "w")
     tmpfile:write(buf)
     tmpfile:close()
-    tbl.services[tbl.service].file = file
+    tbl.file = file
 end
 
 local function fdataConcat(tbl)
@@ -74,7 +86,7 @@ local function fdataConcat(tbl)
     local tmpfile = io.open(tbl.tmpfilename, "w")
     tmpfile:write(buf)
     tmpfile:close()
-    tbl.services[tbl.service].file = "Multiple files"
+    tbl.file = "Multiple files"
 end
 
 local function addService(tbl, service_name, service_url, languages_tbl, body_func, url_match, expires_tbl) --tbl = LP
@@ -84,7 +96,7 @@ local function addService(tbl, service_name, service_url, languages_tbl, body_fu
     expires = expires_tbl or {},
     matcher = url_match,
     curl_args = body_func, --function to create curl args
-    file = ""
+--    file = ""
   }
 end
 
@@ -177,7 +189,7 @@ local function CODEPAD_ARGS(tbl, file)
     if run then run = "True" else run = "False" end
     if private then private = "True" else private = "False" end
     local args = {
-        "'client=luapaste.lua'",
+        "'client=curlpaste'",
         "'run=%s'" % run,
         "'lang=%s'" % lang,
         "'private=%s'" % private,
@@ -190,7 +202,7 @@ end
 local function CA_ARGS(tbl, file)
     local lang = tbl.services[tbl.service].languages[tbl.language] or tbl.language
     local args = {
-        "'client=luapaste.lua'",
+        "'client=curlpaste'",
         "'s=Submit Post'",
         "'name=%s'" % tbl.nick,
         "'description=%s'" % tbl.description,
@@ -206,7 +218,7 @@ local function MYSTIC_ARGS(tbl, file)
     local private = tbl.private
     if private then private = "true" else private = "false" end
     local args = {
-        "'client=luapaste.lua'",
+        "'client=curlpaste'",
         "'description=luapaste.lua'",
         "'type=%s'" % lang,
         "'name=%s'" % tbl.nick,
@@ -218,7 +230,7 @@ end
 local function DPASTE_ARGS(tbl, file)
     local lang = tbl.services[tbl.service].languages[tbl.language] or tbl.language
     local args = {
-        "'client=luapaste.lua'",
+        "'client=curlpaste'",
         "'content@%s'" % file,
         "'title=%s'" % tbl.description,
         "'poster=%s'" % tbl.nick,
@@ -230,7 +242,7 @@ end
 local function FPASTE_ARGS(tbl, file)
     local lang = tbl.services[tbl.service].languages[tbl.language] or tbl.language
     local args = {
---        "'client=luapaste.lua'",
+--        "'client=curlpaste'",
         "'content@%s'" % file,
         "'lang=%s'" % lang,
         "'submit=Paste it!'",
@@ -243,7 +255,7 @@ end
 local function CODEPAD_MATCHER(response)
     local url = response:match('The resource was found at <a href="(.*)">/')
     if url then
-        return "\nhttp://codepad.org"..url
+        return "http://codepad.org"..url
     else
         print("Error retrieving url.")
 --        return
@@ -253,7 +265,7 @@ end
 local function CA_MATCHER(response)
    local url = response:match('SUCCESS:(.*)')
    if url then
-        return "\nhttp://pastebin.ca/"..url
+        return "http://pastebin.ca/"..url
     else
         print("Error retrieving url.")
 --        return
@@ -349,7 +361,7 @@ local function fileList(tbl, params)
             table.insert(tbl.files, v)
         end
     else
-        print("Usage: curlpaste -f file1 file2 file3 ...")
+        print("Usage: curlpaste -f foo bar baz ...")
         tbl.cont = false
     end
 end
@@ -470,6 +482,70 @@ end
 
 addOption(LP, "E", listExpiry, "list-expiration")
 
+math.randomseed(os.time())
+local function vista(tbl, params)
+    local questions = {
+        "Are you sure?",
+        "God kills a kitten every time you upload, continue?",
+        "Really? Surely you are joking.",
+        "Your code will be visible to anyone, are you sure?",
+        "Opensource is the devil, really upload?",
+        "You want to flood moar e-space with your nonsense?",
+        "Every time you upload, a linux fanboy dies. Are you sure?",
+        "Text is complete crap, upload anyway?",
+        "Uploading might compromise your security and could inflict a serious mental injury, continue?",
+    }
+    local r = math.random(1, 10)
+    local input = ""
+    local function loop() 
+        for i=1, r do
+        print(questions[math.random(1, #questions)])
+        input = tostring(io.read())
+        if input:lower() == "n" or input:lower() == "no"  then
+            print("Ok")
+            tbl.cont = false
+            return
+        elseif input:lower() == "y" or input:lower() == "yes" then
+            print("Ok")
+        else
+            print("yes/no or y/n")
+            return loop()
+        end
+    end
+end
+loop()
+end
+
+addOption(LP, "V", vista, "vista")
+
+local function xcut(tbl, params)
+    if checkXclip() then
+        local fd = io.popen("xclip -o")
+        local tmpfile = io.open(tbl.tmpfilename, "w")
+        for line in fd:lines() do
+            tmpfile:write(line.."\n")
+        end
+        tmpfile:close()
+        tbl.file = "X clipboard selection"
+        tbl.xcut = true
+    else
+        print("xclip must be installed to use this option.")
+    end
+end
+
+addOption(LP, "x", xcut, "xcut")
+
+local function xpaste(tbl, params)
+    if checkXclip() then
+        tbl.xpaste = true
+    else
+        print("xclip must be installed to use this option.")
+        tbl.cont = false
+    end
+end
+
+addOption(LP, "X", xpaste, "xpaste")
+
 local function help(tbl, params)
 print([=[
 Usage: curlpaste [options] -f [file[s]]
@@ -484,6 +560,9 @@ Options:
     -r, --run                       set run flag (codepad)
     -c, --concat                    concat multiple files into a single upload
                                     default is a separate paste for each file
+    -x, --xcut                      read input from clipboard (requires xclip)
+    -X, --xpaste                    write url to X primary selection buffer (requires xclip)
+    -V, --vista                     Asks a random number of times for confirmation in amusing ways
     -d, --description DESC          set description of paste
     -n, --nick NICK                 set the name to use for a paste
     -h, --help                      show this help info
@@ -505,7 +584,7 @@ local function runCommand(tbl, params)
         local tmpfile = io.open(tbl.tmpfilename, "w")
         tmpfile:write(buf)
         tmpfile:close()
-        tbl.services[tbl.service].file = params[1]
+        tbl.file = params[1]
         tbl.command = true
     else
         print("Usage: -C COMMAND")
@@ -515,7 +594,7 @@ end
 addOption(LP, "C", runCommand, "command")
 
 local function post(tbl, filename)
-    local file = tbl.services[tbl.service].file
+    local file = tbl.file
     if DEFAULT_DESCRIPTION  == "" then 
         tbl.description = file
     elseif DEFAULT_DESCRIPTION == tbl.description then
@@ -533,7 +612,9 @@ local function post(tbl, filename)
     curl_command = curl_command .. " " .. string.format("%q", s_url)
     local response = io.popen(curl_command)
     response = response:read("*a")
-    return matcher(response)
+    tbl.returnurl = matcher(response)
+    return tbl.returnurl
+--    return matcher(response)
 --    print(curl_command)
 end
 
@@ -555,6 +636,11 @@ local function post1(tbl)
         print(post(tbl, tbl.tmpfilename))
     elseif tbl.command == true and #tbl.files == 0 and tbl.stdin ~= true then
         print(post(tbl, tbl.tmpfilename))
+    elseif tbl.xcut == true and #tbl.files == 0 and tbl.stdin ~= true then
+        print(post(tbl, tbl.tmpfilename))
+    end
+    if tbl.xpaste == true then
+        os.execute("echo "..tbl.returnurl.." | xclip -i >&/dev/null")
     end
 end
 
