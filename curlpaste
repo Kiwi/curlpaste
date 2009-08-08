@@ -308,7 +308,7 @@ addService(LP, "codepad", "http://codepad.org/", CODEPAD_LANGUAGES, CODEPAD_ARGS
 addService(LP, "ca", "http://pastebin.ca/quiet-paste.php?api=moFXXusXQpQ3zlOyYgsXuG74HzYErXkx", CA_LANGUAGES, CA_ARGS, CA_MATCHER, CA_EXPIRES)
 addService(LP, "mystic", "http://www.mysticpaste.com/servlet/plugin", MYSTIC_LANGUAGES, MYSTIC_ARGS, MYSTIC_MATCHER)
 addService(LP, "dpaste", "http://dpaste.com", DPASTE_LANGUAGES, DPASTE_ARGS, DPASTE_MATCHER)
-addService(LP, "fpaste", "http://fpaste.org/paste/save", FPASTE_LANGUAGES, FPASTE_ARGS, FPASTE_MATCHER)
+addService(LP, "fpaste", "http://fpaste.org/", FPASTE_LANGUAGES, FPASTE_ARGS, FPASTE_MATCHER)
 
 
 local function addOption(tbl, option_name, func_name, secondary_name)
