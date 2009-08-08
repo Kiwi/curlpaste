@@ -180,6 +180,7 @@ local CA_EXPIRES = { ["Never"] = "", "5 minutes", "10 minutes", "15 minutes", "3
     "1 week", "2 weeks", "3 weeks", "1 month", "2 months", "3 months", "4 months", 
     "5 months", "6 months", "1 year",
 }
+local FPASTE_EXPIRES = {["1 day"] = "86400"; ["12 hours"] = "43200"; ["3 hours"] = "10800"; ["1 hour"] = "3600";}
 
 ------ARGS-----
 local function CODEPAD_ARGS(tbl, file)
@@ -241,11 +242,15 @@ end
 
 local function FPASTE_ARGS(tbl, file)
     local lang = tbl.services[tbl.service].languages[tbl.language] or tbl.language
+    local expires = tbl.services[tbl.service].expires[tbl.expires] or tbl.expires
     local args = {
 --        "'client=curlpaste'",
         "'content@%s'" % file,
-        "'lang=%s'" % lang,
+        "'title=%s'" % tbl.description,
+        "'lexer=%s'" % lang,
         "'submit=Paste it!'",
+        "'author=%s'" % tbl.nick,
+        "'expire_options=%s'" % expires,
     }
     return args
 end
@@ -297,10 +302,11 @@ end
 local function FPASTE_MATCHER(response)
     local url = response:match('Location: (.*)')
     if url then
-        return url:match("http://fpaste.org/paste/%d*")
+        return url:match("http://fpaste.org/%w*/")
     else
         print("Error retrieving url.")
 --        return
+        return response
     end
 end
 
@@ -308,7 +314,7 @@ addService(LP, "codepad", "http://codepad.org/", CODEPAD_LANGUAGES, CODEPAD_ARGS
 addService(LP, "ca", "http://pastebin.ca/quiet-paste.php?api=moFXXusXQpQ3zlOyYgsXuG74HzYErXkx", CA_LANGUAGES, CA_ARGS, CA_MATCHER, CA_EXPIRES)
 addService(LP, "mystic", "http://www.mysticpaste.com/servlet/plugin", MYSTIC_LANGUAGES, MYSTIC_ARGS, MYSTIC_MATCHER)
 addService(LP, "dpaste", "http://dpaste.com", DPASTE_LANGUAGES, DPASTE_ARGS, DPASTE_MATCHER)
-addService(LP, "fpaste", "http://fpaste.org/", FPASTE_LANGUAGES, FPASTE_ARGS, FPASTE_MATCHER)
+addService(LP, "fpaste", "http://fpaste.org/", FPASTE_LANGUAGES, FPASTE_ARGS, FPASTE_MATCHER, FPASTE_EXPIRES)
 
 
 local function addOption(tbl, option_name, func_name, secondary_name)
@@ -613,9 +619,9 @@ local function post(tbl, filename)
     local response = io.popen(curl_command)
     response = response:read("*a")
     tbl.returnurl = matcher(response)
+--    print(curl_command)
     return tbl.returnurl
 --    return matcher(response)
---    print(curl_command)
 end
 
 
