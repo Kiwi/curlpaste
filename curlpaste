@@ -1,11 +1,11 @@
 #!/usr/bin/lua
 
-local function loadconf(x) 
-    local ok,e = pcall(dofile,x) 
-    if not ok and not string.match(e,"^cannot open ") then 
-        error(e) 
-    end 
-end 
+local function loadconf(x)
+    local ok,e = pcall(dofile,x)
+    if not ok and not string.match(e,"^cannot open ") then
+        error(e)
+    end
+end
 
 loadconf("/etc/curlpaste.conf")
 loadconf(os.getenv("HOME").."/.curlpaste.conf")
@@ -24,9 +24,9 @@ end
 
 local function checkXclip()
     local x = os.execute("which xclip >&/dev/null")
-    if x == 0 then 
+    if x == 0 then
         return true
-    else 
+    else
         return false
     end
 end
@@ -61,7 +61,7 @@ local LP =  {
     expires = DEFAULT_EXPIRY,
     returnurl = "",
     xpaste = false,
-    xcut = false, 
+    xcut = false,
 }
 cleanup(LP)
 
@@ -91,7 +91,7 @@ end
 
 local function addService(tbl, service_name, service_url, languages_tbl, body_func, url_match, expires_tbl) --tbl = LP
     tbl.services[service_name] = {
-    url = service_url, 
+    url = service_url,
     languages = languages_tbl,
     expires = expires_tbl or {},
     matcher = url_match,
@@ -104,7 +104,7 @@ end
 ----LANGUAGES----
 
 local CODEPAD_LANGUAGES = {
-  "C", "C++", "D", "Haskell", "Lua", "OCaml", "PHP", "Perl", "Plain Text", 
+  "C", "C++", "D", "Haskell", "Lua", "OCaml", "PHP", "Perl", "Plain Text",
   "Python", "Ruby", "Scheme", "Tcl",
 }
 local CA_LANGUAGES = {
@@ -143,41 +143,41 @@ local CA_LANGUAGES = {
 }
 
 local MYSTIC_LANGUAGES = {
-    "as3", "bash", "csharp", "cpp", "css", "delphi", "diff", "groovy", "java", 
-    "js", "javafx", "perl", "php", "text", "powershell", "python", "ruby", 
+    "as3", "bash", "csharp", "cpp", "css", "delphi", "diff", "groovy", "java",
+    "js", "javafx", "perl", "php", "text", "powershell", "python", "ruby",
     "scala", "sql", "vb", "xml",
 }
 
 local DPASTE_LANGUAGES = {
-    "Python", "PythonConsole", "Sql", "DjangoTemplate", "JScript", "Css", "XmL", 
+    "Python", "PythonConsole", "Sql", "DjangoTemplate", "JScript", "Css", "XmL",
     "Diff", "Ruby", "Rhtml", "Haskell", "Apache", "Bash", ["Plain"] = "";
 }
 
 local FPASTE_LANGUAGES = {
-    "apacheconf", "bash", "bat", "bbcode", "befunge", "boo", "brainfuck", "c", 
-    "cpp", "csharp", "css", "css+django", "css+erb", "css+genshitext", "css+mako", 
-    "css+myghty", "css+php", "css+smarty", "d", "delphi", "diff", "django", "dylan", 
-    "erb", "genshi", "genshitext", "groff", "haskell", "html", "html+django", 
-    "html+genshi", "html+mako", "html+myghty", "html+php", "html+smarty", "ini", 
-    "irc", "java", "js", "js+django", "js+erb", "js+genshitext", "js+mako", 
-    "js+myghty", "js+php", "js+smarty", "jsp", "lua", "make", "mako", "minid", 
-    "mupad", "myghty", "objective-c", "ocaml", "perl", "php", "pycon", "pytb", 
-    "python", "raw", "rb", "rbcon", "redcode", "rhtml", "rst", "scheme", "smarty", 
-    "sourceslist", "sql", "tex", "text", "trac-wiki", "vb.net", "vim", "xml", 
+    "apacheconf", "bash", "bat", "bbcode", "befunge", "boo", "brainfuck", "c",
+    "cpp", "csharp", "css", "css+django", "css+erb", "css+genshitext", "css+mako",
+    "css+myghty", "css+php", "css+smarty", "d", "delphi", "diff", "django", "dylan",
+    "erb", "genshi", "genshitext", "groff", "haskell", "html", "html+django",
+    "html+genshi", "html+mako", "html+myghty", "html+php", "html+smarty", "ini",
+    "irc", "java", "js", "js+django", "js+erb", "js+genshitext", "js+mako",
+    "js+myghty", "js+php", "js+smarty", "jsp", "lua", "make", "mako", "minid",
+    "mupad", "myghty", "objective-c", "ocaml", "perl", "php", "pycon", "pytb",
+    "python", "raw", "rb", "rbcon", "redcode", "rhtml", "rst", "scheme", "smarty",
+    "sourceslist", "sql", "tex", "text", "trac-wiki", "vb.net", "vim", "xml",
     "xml+django", "xml+erb", "xml+mako", "xml+myghty", "xml+php", "xml+smarty",
 }
 --[[
 local OMPLOAD_LANGUAGES = {
-    "raw", "c", "cobol", "cpp", "css", "diff", "fortran", "haskell", "html", "java", 
-    "javascript", "lisp", "lua", "mysql", "pascal", "perl", "php", "python", "ruby", 
+    "raw", "c", "cobol", "cpp", "css", "diff", "fortran", "haskell", "html", "java",
+    "javascript", "lisp", "lua", "mysql", "pascal", "perl", "php", "python", "ruby",
     "scheme", "sh", "vb", "xhtml", "xml",
 }
 --]]
 
 -----EXPIRES----
 local CA_EXPIRES = { ["Never"] = "", "5 minutes", "10 minutes", "15 minutes", "30 minutes", "45 minutes",
-    "1 hour", "2 hours", "4 hours", "8 hours", "12 hours", "1 day", "2 days", "3 days", 
-    "1 week", "2 weeks", "3 weeks", "1 month", "2 months", "3 months", "4 months", 
+    "1 hour", "2 hours", "4 hours", "8 hours", "12 hours", "1 day", "2 days", "3 days",
+    "1 week", "2 weeks", "3 weeks", "1 month", "2 months", "3 months", "4 months",
     "5 months", "6 months", "1 year",
 }
 local FPASTE_EXPIRES = {["1 day"] = "86400"; ["12 hours"] = "43200"; ["3 hours"] = "10800"; ["1 hour"] = "3600";}
@@ -353,7 +353,7 @@ local function getOptions(options)
           resetFlags()
         end
       end
-    elseif cur_opt then 
+    elseif cur_opt then
       table.insert(options[cur_opt].params, arg[i])
     else
 --      table.insert(files, arg[i])
@@ -418,7 +418,7 @@ local function description(tbl, params)
     if params[1] then
         tbl.description = params[1]
         DEFAULT_DESCRIPTION = params[1]
-    else 
+    else
         print("Usage: curlpaste -d DESCRIPTION")
         tbl.cont = false
     end
@@ -503,7 +503,7 @@ local function vista(tbl, params)
     }
     local r = math.random(1, 10)
     local input = ""
-    local function loop() 
+    local function loop()
         for i=1, r do
         print(questions[math.random(1, #questions)])
         input = tostring(io.read())
@@ -572,7 +572,7 @@ Options:
     -d, --description DESC          set description of paste
     -n, --nick NICK                 set the name to use for a paste
     -h, --help                      show this help info
-    
+
     -E, --list-expiration SERVICE   list supported expiration times for a service
     -S, --list-services             list supported services
     -L, --list-languages SERVICE    list supported languages for a service
@@ -601,7 +601,7 @@ addOption(LP, "C", runCommand, "command")
 
 local function post(tbl, filename)
     local file = tbl.file
-    if DEFAULT_DESCRIPTION  == "" then 
+    if DEFAULT_DESCRIPTION  == "" then
         tbl.description = file
     elseif DEFAULT_DESCRIPTION == tbl.description then
         --do nothing because --description flag was used
@@ -681,7 +681,7 @@ end
 
 checkService(LP)
 
-if not LP.cont then 
+if not LP.cont then
     cleanup(LP)
     return
 end
@@ -710,7 +710,7 @@ checkLanguage(LP)
 
 if not LP.cont then
     cleanup(LP)
-    return 
+    return
 end
 
 local function checkExpiry(tbl)
