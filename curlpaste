@@ -13,7 +13,7 @@ loadconf(os.getenv("HOME").."/.curlpaste.conf")
 --some people don't have a config file...
 DEFAULT_DESCRIPTION = DEFAULT_DESCRIPTION or ""
 DEFAULT_NICK = DEFAULT_NICK or os.getenv("USER")
-DEFAULT_LANGUAGE = DEFAULT_LANGUAGE or "Plain Text"
+DEFAULT_LANGUAGE = DEFAULT_LANGUAGE or "Plain"
 DEFAULT_SERVICE = DEFAULT_SERVICE or "codepad"
 DEFAULT_EXPIRY = DEFAULT_EXPIRY or "1 day"
 
