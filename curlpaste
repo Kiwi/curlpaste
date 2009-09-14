@@ -166,6 +166,15 @@ local FPASTE_LANGUAGES = {
     "sourceslist", "sql", "tex", "text", "trac-wiki", "vb.net", "vim", "xml",
     "xml+django", "xml+erb", "xml+mako", "xml+myghty", "xml+php", "xml+smarty",
 }
+
+local GHOST_LANGUAGES = {
+    "c", "css", "cpp", "html4strict", "java", "perl", "php", "python", "ruby", ["plain"] = "text",
+    "asm", "xhtml", "actionscript", "ada", "apache", "applescript", "autoit", "bash",
+    "bptzbasic", "c_mac", "csharp", "ColdFusion", "delphi", "eiffel", "fortran", "freebasic",
+    "gml", "groovy", "inno", "java5", "javascript", "latex", "mirc", "mysql", "nsis", "objc",
+    "ocaml", "oobas", "orcale8", "pascal", "plsql", "qbasic", "robots", "scheme", "sdlbasic",
+    "smalltalk", "smarty", "sql", "tcl", "vbnet", "vb", "winbatch", "xml", "z80",
+}
 --[[
 local OMPLOAD_LANGUAGES = {
     "raw", "c", "cobol", "cpp", "css", "diff", "fortran", "haskell", "html", "java",
@@ -180,7 +189,11 @@ local CA_EXPIRES = { ["Never"] = "", "5 minutes", "10 minutes", "15 minutes", "3
     "1 week", "2 weeks", "3 weeks", "1 month", "2 months", "3 months", "4 months",
     "5 months", "6 months", "1 year",
 }
+
 local FPASTE_EXPIRES = {["1 day"] = "86400"; ["12 hours"] = "43200"; ["3 hours"] = "10800"; ["1 hour"] = "3600";}
+
+local GHOST_EXPIRES = {["30 minutes"] = "30"; ["1 hour"] = "60"; ["6 hours"] = "360"; ["12 hours"] = "720"; ["1 day"] = "1440";
+    ["1 week"] = "100080"; ["4 weeks"] = "40320";}
 
 ------ARGS-----
 local function CODEPAD_ARGS(tbl, file)
@@ -255,6 +268,24 @@ local function FPASTE_ARGS(tbl, file)
     return args
 end
 
+local function GHOST_ARGS(tbl, file)
+    local lang = tbl.services[tbl.service].languages[tbl.language] or tbl.language
+    local expires = tbl.services[tbl.service].expires[tbl.expires] or tbl.expires
+    local private = tbl.private
+    if private then private = "1" else private = "0" end
+    local args = {
+        "'code@%s'" % file,
+        "'title=%s'" % tbl.description,
+        "'name=%s'" % tbl.nick,
+        "'lang=%s'" % lang,
+        "'private=%s'" % private,
+        "'expire=%s'" % expires,
+        "'submit=submit'",
+    }
+    return args
+end
+
+
 ----URL MATCHERS----
 
 local function CODEPAD_MATCHER(response)
@@ -275,7 +306,6 @@ local function CA_MATCHER(response)
         print("Error retrieving url.")
 --        return
     end
-    --return response
 end
 
 local function MYSTIC_MATCHER(response)
@@ -306,7 +336,16 @@ local function FPASTE_MATCHER(response)
     else
         print("Error retrieving url.")
 --        return
-        return response
+    end
+end
+
+local function GHOST_MATCHER(response)
+    local url = response:match('Location: (.*)')
+    if url then
+        return url:match("http://pasteit.ghost1227.com/index.php/view/%w*")
+    else
+        print("Error retrieving url.")
+--        return
     end
 end
 
@@ -315,7 +354,7 @@ addService(LP, "ca", "http://pastebin.ca/quiet-paste.php?api=moFXXusXQpQ3zlOyYgs
 addService(LP, "mystic", "http://www.mysticpaste.com/servlet/plugin", MYSTIC_LANGUAGES, MYSTIC_ARGS, MYSTIC_MATCHER)
 addService(LP, "dpaste", "http://dpaste.com", DPASTE_LANGUAGES, DPASTE_ARGS, DPASTE_MATCHER)
 addService(LP, "fpaste", "http://fpaste.org/", FPASTE_LANGUAGES, FPASTE_ARGS, FPASTE_MATCHER, FPASTE_EXPIRES)
-
+addService(LP, "ghost", "http://pasteit.ghost1227.com", GHOST_LANGUAGES, GHOST_ARGS, GHOST_MATCHER, GHOST_EXPIRES)
 
 local function addOption(tbl, option_name, func_name, secondary_name)
   tbl.options[option_name] = {on = false, params = {}, func = func_name}
