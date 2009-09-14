@@ -104,7 +104,7 @@ end
 ----LANGUAGES----
 
 local CODEPAD_LANGUAGES = {
-  "C", "C++", "D", "Haskell", "Lua", "OCaml", "PHP", "Perl", "Plain Text",
+  "C", "C++", "D", "Haskell", "Lua", "OCaml", "PHP", "Perl", ["Plain"] = "Plain Text",
   "Python", "Ruby", "Scheme", "Tcl",
 }
 local CA_LANGUAGES = {
@@ -132,7 +132,7 @@ local CA_LANGUAGES = {
     ["Pascal"] = "12";
     ["Perl"] = "6";
     ["Python"] = "11";
-    ["Raw"] = "1";
+    ["Plain"] = "1";
     ["Ruby"] = "10";
     ["SQL Statement"] = "16";
     ["Scheme"] = "17";
@@ -144,7 +144,7 @@ local CA_LANGUAGES = {
 
 local MYSTIC_LANGUAGES = {
     "as3", "bash", "csharp", "cpp", "css", "delphi", "diff", "groovy", "java",
-    "js", "javafx", "perl", "php", "text", "powershell", "python", "ruby",
+    "js", "javafx", "perl", "php", ["plain"] = "text", "powershell", "python", "ruby",
     "scala", "sql", "vb", "xml",
 }
 
@@ -162,7 +162,7 @@ local FPASTE_LANGUAGES = {
     "irc", "java", "js", "js+django", "js+erb", "js+genshitext", "js+mako",
     "js+myghty", "js+php", "js+smarty", "jsp", "lua", "make", "mako", "minid",
     "mupad", "myghty", "objective-c", "ocaml", "perl", "php", "pycon", "pytb",
-    "python", "raw", "rb", "rbcon", "redcode", "rhtml", "rst", "scheme", "smarty",
+    "python", ["plain"] = "raw", "rb", "rbcon", "redcode", "rhtml", "rst", "scheme", "smarty",
     "sourceslist", "sql", "tex", "text", "trac-wiki", "vb.net", "vim", "xml",
     "xml+django", "xml+erb", "xml+mako", "xml+myghty", "xml+php", "xml+smarty",
 }
