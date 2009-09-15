@@ -193,7 +193,7 @@ local CA_EXPIRES = { ["Never"] = "", "5 minutes", "10 minutes", "15 minutes", "3
 local FPASTE_EXPIRES = {["1 day"] = "86400"; ["12 hours"] = "43200"; ["3 hours"] = "10800"; ["1 hour"] = "3600";}
 
 local GHOST_EXPIRES = {["30 minutes"] = "30"; ["1 hour"] = "60"; ["6 hours"] = "360"; ["12 hours"] = "720"; ["1 day"] = "1440";
-    ["1 week"] = "100080"; ["4 weeks"] = "40320";}
+    ["1 week"] = "100080"; ["4 weeks"] = "400320";}
 
 ------ARGS-----
 local function CODEPAD_ARGS(tbl, file)
