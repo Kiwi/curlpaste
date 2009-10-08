@@ -1,5 +1,9 @@
 #!/usr/bin/lua
 
+-- canti edits:
+-- editted tmpfilename to /tmp/curlpaste.tmp instead of curlpaste.tmp
+-- added lodgeit support
+
 local function loadconf(x)
     local ok,e = pcall(dofile,x)
     if not ok and not string.match(e,"^cannot open ") then
@@ -42,7 +46,6 @@ end
 getmetatable("").__mod = str__mod
 
 local LP =  {
-    default_matcher = "", --function to process response from server for url
     service = DEFAULT_SERVICE, --service to use
     language =  DEFAULT_LANGUAGE, --language to use
     services = {}, --available services (addService)
@@ -54,7 +57,7 @@ local LP =  {
     nick = DEFAULT_NICK,
     concat = false,
     file = "",
-    tmpfilename = "curlpaste.tmp",
+    tmpfilename = "/tmp/curlpaste.tmp",
     stdin = false,
     cont = true,
     command = false,
@@ -96,7 +99,6 @@ local function addService(tbl, service_name, service_url, languages_tbl, body_fu
     expires = expires_tbl or {},
     matcher = url_match,
     curl_args = body_func, --function to create curl args
---    file = ""
   }
 end
 
@@ -175,13 +177,18 @@ local GHOST_LANGUAGES = {
     "ocaml", "oobas", "orcale8", "pascal", "plsql", "qbasic", "robots", "scheme", "sdlbasic",
     "smalltalk", "smarty", "sql", "tcl", "vbnet", "vb", "winbatch", "xml", "z80",
 }
---[[
-local OMPLOAD_LANGUAGES = {
-    "raw", "c", "cobol", "cpp", "css", "diff", "fortran", "haskell", "html", "java",
-    "javascript", "lisp", "lua", "mysql", "pascal", "perl", "php", "python", "ruby",
-    "scheme", "sh", "vb", "xhtml", "xml",
+
+local LODGEIT_LANGUAGES = {
+    "apache", "bash", "bat", "boo", "c", "csharp", "cpp", "clojure", "creole", "css", "csv",
+    "d", "control", "html+django", "dylan", "erlang", "rhtml", "gas", "gcc-messages",
+    "html+genshi", "gettext", "glsl", "haskell", "html", "ini", "irb", "io", "irc", "java",
+    "javac-messages", "js", "jsp", "lighttpd", "literate-haskell", "llvm", "lua", "html+mako",
+    "matlab", "matlabsession", "minid", "multi", "html+myghty", "mysql", "nasm", "nginx",
+    "objectpascal", "ocaml", "perl", "html+php", "php", "povray", "python", "pycon", "pytb",
+    "rst", "ruby", "scala", "scheme", "smalltalk", "smarty", "sourceslist", "sql", "squidconf",
+    "tex", ["plain"] = "text", "diff", "vim", "xml", "xslt", "yaml",
 }
---]]
+
 
 -----EXPIRES----
 local CA_EXPIRES = { ["Never"] = "", "5 minutes", "10 minutes", "15 minutes", "30 minutes", "45 minutes",
@@ -257,7 +264,6 @@ local function FPASTE_ARGS(tbl, file)
     local lang = tbl.services[tbl.service].languages[tbl.language] or tbl.language
     local expires = tbl.services[tbl.service].expires[tbl.expires] or tbl.expires
     local args = {
---        "'client=curlpaste'",
         "'content@%s'" % file,
         "'title=%s'" % tbl.description,
         "'lexer=%s'" % lang,
@@ -285,6 +291,27 @@ local function GHOST_ARGS(tbl, file)
     return args
 end
 
+local function LODGEIT_ARGS(tbl, file)
+    local lang = tbl.services[tbl.service].languages[tbl.language] or tbl.language
+    local private = tbl.private
+    if private then private = "on" else private = nil end
+    local args = {}
+    if private == "on" then
+        args = {
+            "'code@%s'" % file,
+            "'language=%s'" % lang,
+            "'private=%s'" % private,
+            "'submit=Paste!'",
+        }
+    else
+        args = {
+            "'code@%s'" % file,
+            "'language=%s'" % lang,
+            "'submit=Paste!'",
+        }
+    end
+    return args
+end
 
 ----URL MATCHERS----
 
@@ -349,12 +376,23 @@ local function GHOST_MATCHER(response)
     end
 end
 
+local function LODGEIT_MATCHER(response)
+    local url = response:match('Location: (.*)')
+    if url then
+        return url:match("http://paste.pocoo.org/show/%w*/")
+    else
+        print("Error retrieving url.")
+--        return
+    end
+end
+
 addService(LP, "codepad", "http://codepad.org/", CODEPAD_LANGUAGES, CODEPAD_ARGS, CODEPAD_MATCHER)
 addService(LP, "ca", "http://pastebin.ca/quiet-paste.php?api=moFXXusXQpQ3zlOyYgsXuG74HzYErXkx", CA_LANGUAGES, CA_ARGS, CA_MATCHER, CA_EXPIRES)
 addService(LP, "mystic", "http://www.mysticpaste.com/servlet/plugin", MYSTIC_LANGUAGES, MYSTIC_ARGS, MYSTIC_MATCHER)
 addService(LP, "dpaste", "http://dpaste.com", DPASTE_LANGUAGES, DPASTE_ARGS, DPASTE_MATCHER)
 addService(LP, "fpaste", "http://fpaste.org/", FPASTE_LANGUAGES, FPASTE_ARGS, FPASTE_MATCHER, FPASTE_EXPIRES)
 addService(LP, "ghost", "http://pasteit.ghost1227.com", GHOST_LANGUAGES, GHOST_ARGS, GHOST_MATCHER, GHOST_EXPIRES)
+addService(LP, "lodgeit", "http://paste.pocoo.org/", LODGEIT_LANGUAGES, LODGEIT_ARGS, LODGEIT_MATCHER)
 
 local function addOption(tbl, option_name, func_name, secondary_name)
   tbl.options[option_name] = {on = false, params = {}, func = func_name}
