@@ -42,12 +42,12 @@ end
 getmetatable("").__mod = str__mod
 
 local LP =  {
-    service = DEFAULT_SERVICE, --service to use
-    language =  DEFAULT_LANGUAGE, --language to use
-    services = {}, --available services (addService)
-    options = {}, --available options (addOption)
-    files = {}, --files to create textdata (fileList)
-    description = DEFAULT_DESCRIPTION, --description of paste, filename or -d <param> or stdin
+    service = DEFAULT_SERVICE,
+    language =  DEFAULT_LANGUAGE,
+    services = {},
+    options = {},
+    files = {},
+    description = DEFAULT_DESCRIPTION,
     run = false,
     private = false,
     nick = DEFAULT_NICK,
@@ -88,16 +88,15 @@ local function fdataConcat(tbl)
     tbl.file = "Multiple files"
 end
 
-local function addService(tbl, service_name, service_url, languages_tbl, body_func, url_match, expires_tbl) --tbl = LP
+local function addService(tbl, service_name, service_url, languages_tbl, body_func, url_match, expires_tbl)
     tbl.services[service_name] = {
     url = service_url,
     languages = languages_tbl,
     expires = expires_tbl or {},
     matcher = url_match,
-    curl_args = body_func, --function to create curl args
+    curl_args = body_func,
   }
 end
-
 
 ----LANGUAGES----
 
@@ -138,12 +137,6 @@ local CA_LANGUAGES = {
     ["Visual Basic"] = "8";
     ["XML Document"] = "15";
     ["mIRC Script"] = "13";
-}
-
-local MYSTIC_LANGUAGES = {
-    "as3", "bash", "csharp", "cpp", "css", "delphi", "diff", "groovy", "java",
-    "js", "javafx", "perl", "php", ["plain"] = "text", "powershell", "python", "ruby",
-    "scala", "sql", "vb", "xml",
 }
 
 local DPASTE_LANGUAGES = {
@@ -187,6 +180,7 @@ local LODGEIT_LANGUAGES = {
 
 
 -----EXPIRES----
+
 local CA_EXPIRES = { ["Never"] = "", "5 minutes", "10 minutes", "15 minutes", "30 minutes", "45 minutes",
     "1 hour", "2 hours", "4 hours", "8 hours", "12 hours", "1 day", "2 days", "3 days",
     "1 week", "2 weeks", "3 weeks", "1 month", "2 months", "3 months", "4 months",
@@ -199,6 +193,7 @@ local GHOST_EXPIRES = {["30 minutes"] = "30"; ["1 hour"] = "60"; ["6 hours"] = "
     ["1 week"] = "100080"; ["4 weeks"] = "400320";}
 
 ------ARGS-----
+
 local function CODEPAD_ARGS(tbl, file)
     local lang = tbl.services[tbl.service].languages[tbl.language] or tbl.language
     local run = tbl.run
@@ -225,20 +220,6 @@ local function CA_ARGS(tbl, file)
         "'description=%s'" % tbl.description,
         "'type=%s'" % lang,
         "'expiry=%s'" % tbl.expires,
-        "'content@%s'" % file,
-    }
-    return args
-end
-
-local function MYSTIC_ARGS(tbl, file)
-    local lang = tbl.services[tbl.service].languages[tbl.language] or tbl.language
-    local private = tbl.private
-    if private then private = "true" else private = "false" end
-    local args = {
-        "'client=curlpaste'",
-        "'description=luapaste.lua'",
-        "'type=%s'" % lang,
-        "'name=%s'" % tbl.nick,
         "'content@%s'" % file,
     }
     return args
@@ -331,17 +312,6 @@ local function CA_MATCHER(response)
     end
 end
 
-local function MYSTIC_MATCHER(response)
-    local url = response:match('X%-Paste%-Identifier: (.*)')
-
-    if url then
-        return "http://mysticpaste.com/view/"..url
-    else
-        print("Error retrieving url.")
---        return
-    end
-end
-
 local function DPASTE_MATCHER(response)
     local url = response:match('Location: (.*)')
     if url then
@@ -384,7 +354,6 @@ end
 
 addService(LP, "codepad", "http://codepad.org/", CODEPAD_LANGUAGES, CODEPAD_ARGS, CODEPAD_MATCHER)
 addService(LP, "ca", "http://pastebin.ca/quiet-paste.php?api=moFXXusXQpQ3zlOyYgsXuG74HzYErXkx", CA_LANGUAGES, CA_ARGS, CA_MATCHER, CA_EXPIRES)
-addService(LP, "mystic", "http://www.mysticpaste.com/servlet/plugin", MYSTIC_LANGUAGES, MYSTIC_ARGS, MYSTIC_MATCHER)
 addService(LP, "dpaste", "http://dpaste.com", DPASTE_LANGUAGES, DPASTE_ARGS, DPASTE_MATCHER)
 addService(LP, "fpaste", "http://fpaste.org/", FPASTE_LANGUAGES, FPASTE_ARGS, FPASTE_MATCHER, FPASTE_EXPIRES)
 addService(LP, "ghost", "http://pasteit.ghost1227.com", GHOST_LANGUAGES, GHOST_ARGS, GHOST_MATCHER, GHOST_EXPIRES)
