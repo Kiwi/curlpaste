@@ -1,9 +1,5 @@
 #!/usr/bin/lua
 
--- canti edits:
--- editted tmpfilename to /tmp/curlpaste.tmp instead of curlpaste.tmp
--- added lodgeit support
-
 local function loadconf(x)
     local ok,e = pcall(dofile,x)
     if not ok and not string.match(e,"^cannot open ") then
@@ -394,48 +390,59 @@ addService(LP, "fpaste", "http://fpaste.org/", FPASTE_LANGUAGES, FPASTE_ARGS, FP
 addService(LP, "ghost", "http://pasteit.ghost1227.com", GHOST_LANGUAGES, GHOST_ARGS, GHOST_MATCHER, GHOST_EXPIRES)
 addService(LP, "lodgeit", "http://paste.pocoo.org/", LODGEIT_LANGUAGES, LODGEIT_ARGS, LODGEIT_MATCHER)
 
-local function addOption(tbl, option_name, func_name, secondary_name)
-  tbl.options[option_name] = {on = false, params = {}, func = func_name}
+local function addOption(tbl, required_opt, option_name, func_name, secondary_name)
+  tbl.options[option_name] = {on = false, params = {}, func = func_name, required = required_opt}
   if secondary_name and secondary_name ~= option_name then
-    tbl.options[secondary_name] = {on = false, params = tbl.options[option_name].params, func = func_name}
+    tbl.options[secondary_name] = {on = false, params = tbl.options[option_name].params, func = func_name, required = required_opt}
   end
 end
 
 local function getOptions(options)
-  local function resetFlags()
-    for k in pairs(options) do
-      options[k].on = false
-    end
-  end
-  local cur_opt
-  local args_left = #arg
-  for i = 1, #arg do
-    if string.match(arg[i], "^%-%-") then
-      s = string.gsub(arg[i], "^%-%-", "")
-      if options[s] and #s > 1 then
-        options[s].on = true
-        cur_opt = s
-      else
-        print("--"..s.." is an invalid option")
-        resetFlags()
-      end
-    elseif string.match(arg[i], "^%-%a+") then
-      for j = 1, #arg[i]-1 do
-        s = string.sub(arg[i], j+1, j+1)
-        if options[s] then
-          options[s].on = true
-          cur_opt = s
-        else
-          print("-"..s.." is an invalid option")
-          resetFlags()
+    local function resetFlags()
+        for k in pairs(options) do
+            options[k].on = false
         end
-      end
-    elseif cur_opt then
-      table.insert(options[cur_opt].params, arg[i])
-    else
---      table.insert(files, arg[i])
     end
-  end
+    local cur_opt, required_opt
+    for i = 1, #arg do
+        if string.match(arg[i], "^%-%-") then
+            s = string.gsub(arg[i], "^%-%-", "")
+            if options[s] and #s > 1 then
+                options[s].on = true
+                cur_opt = s
+                required_opt = options[s].required
+            else
+                print("--"..s.." is an invalid option")
+                resetFlags()
+            end
+
+        elseif string.match(arg[i], "^%-%a+") then
+            for j = 1, #arg[i]-1 do
+                s = string.sub(arg[i], j+1, j+1)
+                if options[s] then
+                    options[s].on = true
+                    cur_opt = s
+                    required_opt = options[s].required
+                else
+                    print("-"..s.." is an invalid option")
+                    resetFlags()
+                end
+            end
+
+        elseif cur_opt then
+            if required_opt then
+                table.insert(options[cur_opt].params, arg[i])
+                cur_opt = nil
+                required_opt = false
+            else
+                table.insert(options["f"].params, arg[i])
+                options["f"].on = true
+            end
+        else
+            table.insert(options["f"].params, arg[i])
+            options["f"].on = true
+        end
+    end
 end
 
 local function fileList(tbl, params)
@@ -449,7 +456,7 @@ local function fileList(tbl, params)
     end
 end
 
-addOption(LP, "f", fileList, "file")
+addOption(LP, true, "f", fileList, "file")
 
 local function pickService(tbl, params)
     if params[1] then
@@ -460,7 +467,7 @@ local function pickService(tbl, params)
     end
 end
 
-addOption(LP, "s", pickService, "service")
+addOption(LP, true, "s", pickService, "service")
 
 local function pickLanguage(tbl, params)
     if params[1] then
@@ -471,25 +478,25 @@ local function pickLanguage(tbl, params)
     end
 end
 
-addOption(LP, "l", pickLanguage, "language")
+addOption(LP, true, "l", pickLanguage, "language")
 
 local function private(tbl, params)
     tbl.private = true
 end
 
-addOption(LP, "p", private, "private")
+addOption(LP, false, "p", private, "private")
 
 local function run(tbl, params)
     tbl.run = true
 end
 
-addOption(LP, "r", run, "run")
+addOption(LP, false, "r", run, "run")
 
 local function concat(tbl, params)
     tbl.concat = true
 end
 
-addOption(LP, "c", concat, "concat")
+addOption(LP, false, "c", concat, "concat")
 
 local function description(tbl, params)
     if params[1] then
@@ -501,7 +508,7 @@ local function description(tbl, params)
     end
 end
 
-addOption(LP, "d", description, "description")
+addOption(LP, true, "d", description, "description")
 
 local function nick(tbl, params)
     if params[1] then
@@ -512,7 +519,7 @@ local function nick(tbl, params)
     end
 end
 
-addOption(LP, "n", nick, "nick")
+addOption(LP, true, "n", nick, "nick")
 
 local function listServices(tbl, params)
     for k in pairs(tbl.services) do
@@ -521,7 +528,7 @@ local function listServices(tbl, params)
     tbl.cont = false
 end
 
-addOption(LP, "S", listServices, "list-services")
+addOption(LP, false, "S", listServices, "list-services")
 
 local function listLanguages(tbl, params)
     if tbl.services[params[1]] then
@@ -534,13 +541,13 @@ local function listLanguages(tbl, params)
     tbl.cont = false
 end
 
-addOption(LP, "L", listLanguages, "list-languages")
+addOption(LP, true, "L", listLanguages, "list-languages")
 
 local function stdin(tbl, params)
     tbl.stdin = true
 end
 
-addOption(LP, "stdin", stdin)
+addOption(LP, false, "stdin", stdin)
 
 local function setExpiry(tbl, params)
     if params[1] then
@@ -550,7 +557,7 @@ local function setExpiry(tbl, params)
     end
 end
 
-addOption(LP, "e", setExpiry, "expiration")
+addOption(LP, true, "e", setExpiry, "expiration")
 
 local function listExpiry(tbl, params)
     if tbl.services[params[1]] then
@@ -563,7 +570,7 @@ local function listExpiry(tbl, params)
     tbl.cont = false
 end
 
-addOption(LP, "E", listExpiry, "list-expiration")
+addOption(LP, true, "E", listExpiry, "list-expiration")
 
 math.randomseed(os.time())
 local function vista(tbl, params)
@@ -599,7 +606,7 @@ end
 loop()
 end
 
-addOption(LP, "V", vista, "vista")
+addOption(LP, false, "V", vista, "vista")
 
 local function xcut(tbl, params)
     if checkXclip() then
@@ -616,7 +623,7 @@ local function xcut(tbl, params)
     end
 end
 
-addOption(LP, "x", xcut, "xcut")
+addOption(LP, false, "x", xcut, "xcut")
 
 local function xpaste(tbl, params)
     if checkXclip() then
@@ -627,11 +634,11 @@ local function xpaste(tbl, params)
     end
 end
 
-addOption(LP, "X", xpaste, "xpaste")
+addOption(LP, false, "X", xpaste, "xpaste")
 
 local function help(tbl, params)
 print([=[
-Usage: curlpaste [options] -f [file[s]]
+Usage: curlpaste [options] [file[s]]
 
 Options:
     -f, --file FILE(s)              list of files to upload
@@ -658,7 +665,7 @@ Options:
 tbl.cont = false
 end
 
-addOption(LP, "h", help, "help")
+addOption(LP, false, "h", help, "help")
 
 local function runCommand(tbl, params)
     if params[1] then
@@ -674,7 +681,7 @@ local function runCommand(tbl, params)
     end
 end
 
-addOption(LP, "C", runCommand, "command")
+addOption(LP, true, "C", runCommand, "command")
 
 local function post(tbl, filename)
     local file = tbl.file
@@ -727,12 +734,6 @@ local function post1(tbl)
     end
 end
 
-
-
-
-
-
-
 getOptions(LP.options)
 
 local function setOptions(tbl)
@@ -744,7 +745,6 @@ local function setOptions(tbl)
 end
 
 setOptions(LP)
-
 
 
 --sanity checks to decide if the program should continue to upload
@@ -819,7 +819,5 @@ if not LP.cont then
     return
 end
 
-
 post1(LP)
-
 cleanup(LP)
