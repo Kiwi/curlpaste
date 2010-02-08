@@ -159,12 +159,12 @@ local FPASTE_LANGUAGES = {
 }
 
 local GHOST_LANGUAGES = {
-    "c", "css", "cpp", "html4strict", "java", "perl", "php", "python", "ruby", ["plain"] = "text",
-    "asm", "xhtml", "actionscript", "ada", "apache", "applescript", "autoit", "bash",
-    "bptzbasic", "c_mac", "csharp", "ColdFusion", "delphi", "eiffel", "fortran", "freebasic",
-    "gml", "groovy", "inno", "java5", "javascript", "latex", "mirc", "mysql", "nsis", "objc",
-    "ocaml", "oobas", "orcale8", "pascal", "plsql", "qbasic", "robots", "scheme", "sdlbasic",
-    "smalltalk", "smarty", "sql", "tcl", "vbnet", "vb", "winbatch", "xml", "z80",
+    ["plain"] = "text"; "actionscript", "ada", "apache", "applescript", "asm", "asp", "bash",
+    "c", "c_mac", "caddcl", "cadlisp", "cpp", "csharp", "cfm", "css", "d", "delphi", "diff",
+    "dos", "eiffel", "fortran", "freebasic", "gml", "html4strict", "ini", "java", "javascript",
+    "lisp", "lua", "matlab", "mpasm", "mysql", "nsis", "objc", "ocaml", "oobas", "oracle8",
+    "pascal", "perl", "php", "python", "qbasic", "robots", "ruby", "scheme", "smarty", "sql",
+    "tcl", "vb", "vbnet", "visualfoxpro", "xml"
 }
 
 local LODGEIT_LANGUAGES = {
@@ -189,8 +189,7 @@ local CA_EXPIRES = { ["Never"] = "", "5 minutes", "10 minutes", "15 minutes", "3
 
 local FPASTE_EXPIRES = {["1 day"] = "86400"; ["12 hours"] = "43200"; ["3 hours"] = "10800"; ["1 hour"] = "3600";}
 
-local GHOST_EXPIRES = {["30 minutes"] = "30"; ["1 hour"] = "60"; ["6 hours"] = "360"; ["12 hours"] = "720"; ["1 day"] = "1440";
-    ["1 week"] = "100080"; ["4 weeks"] = "400320";}
+local GHOST_EXPIRES = {["1 day"] = "d"; ["1 month"] = "m"; ["forever"] = "f";}
 
 ------ARGS-----
 
@@ -257,13 +256,12 @@ local function GHOST_ARGS(tbl, file)
     local private = tbl.private
     if private then private = "1" else private = "0" end
     local args = {
-        "'code@%s'" % file,
-        "'title=%s'" % tbl.description,
-        "'name=%s'" % tbl.nick,
-        "'lang=%s'" % lang,
+        "'code2@%s'" % file,
+        "'poster=%s'" % tbl.nick,
+        "'format=%s'" % lang,
         "'private=%s'" % private,
-        "'expire=%s'" % expires,
-        "'submit=submit'",
+        "'expiry=%s'" % expires,
+        "'paste=PasteIt!'",
     }
     return args
 end
@@ -335,7 +333,7 @@ end
 local function GHOST_MATCHER(response)
     local url = response:match('Location: (.*)')
     if url then
-        return url:match("http://pasteit.ghost1227.com/index.php/view/%w*")
+        return url:match("http://pasteit.ghost1227.com/%w*")
     else
         print("Error retrieving url.")
 --        return
@@ -356,7 +354,7 @@ addService(LP, "codepad", "http://codepad.org/", CODEPAD_LANGUAGES, CODEPAD_ARGS
 addService(LP, "ca", "http://pastebin.ca/quiet-paste.php?api=moFXXusXQpQ3zlOyYgsXuG74HzYErXkx", CA_LANGUAGES, CA_ARGS, CA_MATCHER, CA_EXPIRES)
 addService(LP, "dpaste", "http://dpaste.com", DPASTE_LANGUAGES, DPASTE_ARGS, DPASTE_MATCHER)
 addService(LP, "fpaste", "http://fpaste.org/", FPASTE_LANGUAGES, FPASTE_ARGS, FPASTE_MATCHER, FPASTE_EXPIRES)
-addService(LP, "ghost", "http://pasteit.ghost1227.com", GHOST_LANGUAGES, GHOST_ARGS, GHOST_MATCHER, GHOST_EXPIRES)
+addService(LP, "ghost", "http://pasteit.ghost1227.com/pastebin.php", GHOST_LANGUAGES, GHOST_ARGS, GHOST_MATCHER, GHOST_EXPIRES)
 addService(LP, "lodgeit", "http://paste.pocoo.org/", LODGEIT_LANGUAGES, LODGEIT_ARGS, LODGEIT_MATCHER)
 
 local function addOption(tbl, required_opt, option_name, func_name, secondary_name)
