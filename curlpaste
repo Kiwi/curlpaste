@@ -65,6 +65,9 @@ local LP =  {
 cleanup(LP)
 
 local function fdata(tbl, file)
+    if file:match("^~") then
+        file = file:gsub("^~", os.getenv("HOME"))
+    end
     local fd = assert(io.open(file, "rb"))
     local buf = fd:read("*a")
     fd:close()
