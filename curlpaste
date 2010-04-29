@@ -294,9 +294,9 @@ end
 ----URL MATCHERS----
 
 local function CODEPAD_MATCHER(response)
-    local url = response:match('The resource was found at <a href="(.*)">/')
+    local url = response:match('The resource was found at <a href="(.*)">')
     if url then
-        return "http://codepad.org"..url
+        return url
     else
         print("Error retrieving url.")
 --        return
